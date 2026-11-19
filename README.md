@@ -114,7 +114,6 @@ Doplňte do tabulky vhodnou kategorii a konkrétního zástupce z vybraných vý
 
 ## 2. Cyklus řízení PLC a procesní obraz
 
-![Princip cyklu PLC](https://upload.wikimedia.org/wikipedia/commons/6/6e/PLC_cycle.svg)
 
 - Popište 3 základní fáze jednoho pracovního cyklu PLC (Scan Cycle):
 
@@ -168,26 +167,6 @@ Doplňte do tabulky vhodnou kategorii a konkrétního zástupce z vybraných vý
 | Ethernet (ETH) | Ethernet 10/100 Mb/s, kabeláž UTP/STP | Komunikace s počítačem, vizualizací, nadřazeným systémem a dalšími PLC | Standardně až 100 m na jeden měděný ethernetový segment |
 
 ---
-
-## 5. Použité zdroje
-
-1. Teco – Přehled systému Foxtrot:
-   https://www.tecomat.cz/produkty/foxtrot-prehled-systemu
-
-2. Teco – Foxtrot 2, základní moduly a technické parametry:
-   https://catalog.tecomat.cz/kategorie/foxtrot-2-zakladni-moduly
-
-3. Teco – Rozšiřující PLC I/O moduly TCL2:
-   https://www.tecomat.cz/produkty/foxtrot-prehled-systemu/rozsirujici-moduly-tcl2
-
-4. Teco – TCL2 Master Expander:
-   https://catalog.tecomat.cz/index.php/produkt/se-0140-expander-1x-master-systemove-sbernice-tcl2-pro-foxtrot-2
-
-5. Teco – Technické parametry centrální jednotky CP-2005:
-   https://catalog.tecomat.cz/index.php/produkt/cp-200511nsnn
-
-6. IEC – Norma IEC 61131-3:
-   https://webstore.iec.ch/en/publication/68533
 
 
 
