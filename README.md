@@ -347,3 +347,151 @@ Také tento zdroj splňuje požadavky sestavy a poskytuje větší proudovou rez
 - Výpadky komunikace na sběrnici TCL2.
 - Chyby programu, například dělení nulou.
 - Čas a průběh vzniku jednotlivých chyb.
+
+---
+
+### 5. Simulace řídicího programu v prostředí Teco Mosaic: od teorie k praxi
+
+*Časová dotace: 25–30 minut | ‼️ Klasifikovaná inženýrská úloha na známky*
+
+Prostředí **Teco Mosaic** umožňuje úplnou softwarovou simulaci cyklického běhu PLC bez fyzického hardware. Simulátor zprostředkovává procesní obraz vstupů a výstupů, odpočítávání časovačů i sledování proměnných v reálném čase – stejně jako skutečný automat. Tato úloha vás provede celým pracovním tokem: od založení projektu přes napsání řídicího algoritmu až po jeho ověření v simulátoru.
+
+**Technologický scénář – čerpací stanice odpadních vod:**
+
+Naprogramujte a simulujte v prostředí Teco Mosaic řízení jednoduché čerpací stanice s následující logikou:
+
+| Signál | Typ | Popis |
+| :--- | :--- | :--- |
+| `di_HladinaDolni` | DI (NC, log. 1 = hladina nad min.) | Plovákový spínač spodní hladiny – chrání čerpadlo před chodem nasucho |
+| `di_HladinaPump` | DI (NO, log. 1 = hladina dosáhla zapínací úrovně) | Plovákový spínač zapínací hladiny |
+| `di_HladinaHavar` | DI (NO, log. 1 = přepad) | Plovákový spínač havarijního přepadu |
+| `di_Porucha` | DI (NC, log. 1 = bez poruchy) | Termistorové ochranné relé motoru |
+| `do_Cerpadlo` | DO | Výstup stykače hlavního čerpadla |
+| `do_Alarm` | DO | Výstup siréna/maják – havarijní stav |
+
+**Požadovaná logika:**
+
+* Čerpadlo se **automaticky spustí**, jakmile hladina dosáhne zapínací úrovně ( `di_HladinaPump = TRUE` ) a **zároveň** je hladina nad minimem ( `di_HladinaDolni = TRUE` , NC kontakt) a **zároveň** není žádná porucha motoru ( `di_Porucha = TRUE` , NC kontakt).
+* Čerpadlo automaticky zastaví, jakmile hladina klesne pod zapínací úroveň ( `di_HladinaPump = FALSE` ). Implementujte **časové zpoždění vypnutí 10 s** (časovač `TOF` ), aby se zabránilo krátkodobým cyklickým startům (tzv. taktování čerpadla).
+* Při havarijním přepadu ( `di_HladinaHavar = TRUE` ) se okamžitě spustí alarm `do_Alarm` a stav se zapíše do remanentní proměnné `b_HavarieDetekce : BOOL RETAIN` . Alarm zůstane aktivní až do ručního resetu operátorem ( `btn_Reset` ).
+* Při výpadku ochrany motoru ( `di_Porucha = FALSE` ) se čerpadlo okamžitě zastaví a aktivuje se alarm.
+
+**Váš úkol:**
+
+**1. Postup při zakládání projektu a HW konfigurace v Mosaicu (doplňte kroky):**
+
+Popište, co musíte nastavit v prostředí Teco Mosaic, abyste mohli spustit simulaci, aniž byste měli připojený fyzický PLC:
+
+| Krok | Co v Mosaicu nastavit / zkontrolovat | Proč je tento krok nutný |
+| :--- | :--- | :--- |
+| **1. Volba cílové platformy** | V HW konfiguraci zvolit centrální jednotku, např. `CP-2000` *(např. CP-2007)* | Simulátor musí znát počet a typy I/O svorek |
+| **2. Aktivace simulátoru** | V menu `Spojení (Connection)` přepnout komunikaci z „Ethernet / přímé spojení“ na `Simulátor (Simulator)` | Bez aktivace simulátoru by Mosaic hledal fyzické PLC na síti |
+| **3. Přiřazení proměnných k I/O svorkám** | V záložce `I/O konfigurace (HW)` přiřadit proměnnou `di_HladinaDolni` na svorku `DI0` (příp. `%IX0.0`) | Propojuje proměnnou v programu s fyzickým (nebo simulovaným) vstupem |
+| **4. Spuštění simulace** | Kliknout na tlačítko `Start / Run (zelená šipka)` nebo stisknout klávesovou zkratku `F5` (příp. `Ctrl+F5`) | Spustí cyklický běh programu v simulátoru (náhrada za fyzické PLC) |
+| **5. Sledování proměnných** | Otevřít okno `Watch (Sledování proměnných)` a přidat proměnné `do_Cerpadlo` , `stav` , `timer_TOF` | Umožní sledovat aktuální hodnoty proměnných v každém cyklu |
+
+**2. Implementace řídicího algoritmu v jazyce ST:**
+
+Napište program pro výše popsanou logiku čerpací stanice. Použijte strukturu s remanentní proměnnou a časovačem `TOF` . Vzorová kostra programu:
+
+```iecst
+PROGRAM Prg_CerpStation
+VAR
+    di_HladinaDolni  : BOOL; // NC plovák - spodní hladina (log.1 = OK)
+    di_HladinaPump   : BOOL; // NO plovák - zapínací hladina
+    di_HladinaHavar  : BOOL; // NO plovák - havarijní přepad
+    di_Porucha       : BOOL; // NC termistor (log.1 = bez poruchy)
+    btn_Reset        : BOOL; // Ruční reset alarmu operátorem
+    do_Cerpadlo      : BOOL; // Výstup stykače čerpadla
+    do_Alarm         : BOOL; // Výstup majáku / sirény
+
+    b_HavarieDetekce : BOOL; // RETAIN - příznak havárie přepadu (přežije výpadek)
+    timer_TOF        : TOF;  // Zpoždění vypnutí čerpadla (10 s)
+END_VAR
+
+// --- Doplňte implementaci logiky níže ---
+
+// 1. Reset havarijního příznaku operátorem:
+...
+
+// 2. Detekce havarijního přepadu nebo poruchy motoru:
+...
+
+// 3. Podmínka pro spuštění čerpadla (všechny podmínky splněny):
+...
+
+// 4. Řízení výstupu čerpadla přes časovač TOF (zpoždění vypnutí 10 s):
+timer_TOF(IN := ..., PT := T#10s);
+do_Cerpadlo := timer_TOF.Q AND ...;
+
+// 5. Aktivace alarmu:
+do_Alarm := ...;
+
+END_PROGRAM
+```
+
+* ***Váš doplněný kód v ST:***
+
+```iecst
+// Vložte váš kompletní program:
+PROGRAM Prg_CerpStation
+VAR
+    di_HladinaDolni  : BOOL; // NC plovák - spodní hladina (log.1 = OK)
+    di_HladinaPump   : BOOL; // NO plovák - zapínací hladina
+    di_HladinaHavar  : BOOL; // NO plovák - havarijní přepad
+    di_Porucha       : BOOL; // NC termistor (log.1 = bez poruchy)
+    btn_Reset        : BOOL; // Ruční reset alarmu operátorem
+    do_Cerpadlo      : BOOL; // Výstup stykače čerpadla
+    do_Alarm         : BOOL; // Výstup majáku / sirény
+
+    b_HavarieDetekce : BOOL RETAIN; // RETAIN - příznak havárie přepadu (přežije výpadek)
+    timer_TOF        : TOF;         // Zpoždění vypnutí čerpadla (10 s)
+    b_PodminkaChodu  : BOOL;        // Pomocná proměnná pro splnění podmínek spuštění
+END_VAR
+
+// 1. Reset havarijního příznaku operátorem (pouze pokud již pominul přepad):
+IF btn_Reset AND NOT di_HladinaHavar THEN
+    b_HavarieDetekce := FALSE;
+END_IF;
+
+// 2. Detekce havarijního přepadu (uložení do paměti):
+IF di_HladinaHavar THEN
+    b_HavarieDetekce := TRUE;
+END_IF;
+
+// 3. Podmínka pro spuštění čerpadla (všechny podmínky splněny):
+b_PodminkaChodu := di_HladinaPump AND di_HladinaDolni AND di_Porucha;
+
+// 4. Řízení výstupu čerpadla přes časovač TOF (zpoždění vypnutí 10 s):
+// Ochrana proti chodu nasucho (di_HladinaDolni) a poruše (di_Porucha) musí vypnout čerpadlo okamžitě i během doběhu TOF
+timer_TOF(IN := b_PodminkaChodu, PT := T#10s);
+do_Cerpadlo := timer_TOF.Q AND di_HladinaDolni AND di_Porucha;
+
+// 5. Aktivace alarmu (při zapamatovaném přepadu nebo aktivní poruše motoru):
+do_Alarm := b_HavarieDetekce OR NOT di_Porucha;
+
+END_PROGRAM
+```
+
+**3. Ověření chování programu v simulátoru Mosaic (protokol o simulaci):**
+
+Po spuštění simulace v Mosaicu ověřte chování programu. Popište nebo doplňte očekávané hodnoty proměnných v okně **Watch** pro každý testovací scénář:
+
+| Testovací scénář | Vstupní podmínky (hodnoty v simulátoru) | Očekávaný stav výstupů | Skutečně naměřeno v simulátoru |
+| :--- | :--- | :--- | :--- |
+| **Normální jímání – hladina roste** | `di_HladinaDolni=1` , `di_HladinaPump=0` , `di_Porucha=1` , `di_HladinaHavar=0` | `do_Cerpadlo=0` , `do_Alarm=0` | `do_Cerpadlo=FALSE, do_Alarm=FALSE` |
+| **Spuštění čerpadla** | `di_HladinaDolni=1` , `di_HladinaPump=1` , `di_Porucha=1` , `di_HladinaHavar=0` | `do_Cerpadlo=1` , `do_Alarm=0` | `do_Cerpadlo=TRUE, do_Alarm=FALSE` |
+| **Vyprázdnění – čekání TOF** | `di_HladinaDolni=1` , `di_HladinaPump=0` **(právě klesl)** , vše ostatní OK | `do_Cerpadlo=1` *(ještě běží 10 s TOF)* , `timer_TOF.ET` roste | `do_Cerpadlo=TRUE (po 10 s FALSE), timer_TOF.ET: 0s -> 10s` |
+| **Havarijní přepad** | `di_HladinaDolni=1` , `di_HladinaPump=1` , `di_HladinaHavar=1` , `di_Porucha=1` | `do_Alarm=1` , `b_HavarieDetekce=1` | `do_Alarm=TRUE, b_HavarieDetekce=TRUE` |
+| **Porucha motoru (termistorové relé)** | `di_HladinaPump=1` , `di_Porucha=0` | `do_Cerpadlo=0` , `do_Alarm=1` | `do_Cerpadlo=FALSE, do_Alarm=TRUE` |
+| **Reset alarmu** | Po stisku `btn_Reset` , porucha i přepad odstraněny | `do_Alarm=0` , `b_HavarieDetekce=0` | `do_Alarm=FALSE, b_HavarieDetekce=FALSE` |
+
+**4. Propojení teorie s výsledky simulace:**
+
+* Proč proměnná `b_HavarieDetekce` musí být deklarována jako `RETAIN` ? Co by se stalo při výpadku napájení PLC, kdyby nebyla uložena v remanentní paměti?
+  * *Vaše odpověď:* `Klíčové slovo RETAIN zajistí uložení hodnoty proměnné do energeticky nezávislé (remanentní) paměti PLC. Kdyby takto deklarována nebyla, při výpadku a následném obnovení napájení by se její hodnota vyresetovala na výchozí stav (FALSE). Obsluha by se tak nedozvěděla, že před výpadkem došlo k havarijnímu přepadu odpadních vod a znečištění okolí, a alarm by zůstal neaktivní.`
+* Sledujte v okně Watch hodnotu `timer_TOF.ET` (elapsed time) během odpočtu 10 sekund. K čemu slouží tato hodnota z pohledu diagnostiky v praxi?
+  * *Vaše odpověď:* `Hodnota ET (Elapsed Time) udává aktuálně uplynulý čas od spuštění odpočtu zpoždění. V praxi slouží servisním technikům a operátorům k okamžité diagnostice – mohou zkontrolovat, zda časovač vůbec běží, kolik času zbývá do vypnutí čerpadla, nebo zda nedošlo k předčasnému přerušení běhu (např. kvůli poklesu hladiny pod spodní havarijní mez di_HladinaDolni).`
+* Jakým způsobem byste pomocí funkce **Force** v Mosaicu nasimulovali výpadek ochrany motoru ( `di_Porucha = FALSE` ) bez fyzického přepojení svorky? Popište postup a uveďte bezpečnostní riziko:
+  * *Postup Force:* `V okně Watch (nebo v tabulce I/O proměnných) klikneme pravým tlačítkem myši na proměnnou di_Porucha, zvolíme možnost Force (Vnutit hodnotu) a nastavíme ji na FALSE (0). Tím se přepíše hodnota čtená z fyzického vstupu.`
+  * *Bezpečnostní riziko při použití Force v ostrém provozu:* `Vynucená hodnota (Force) má nejvyšší prioritu a trvale přepisuje reálný signál ze snímačů. Pokud technik zapomene funkci Force po testování deaktivovat (odblokovat), PLC bude ignorovat skutečný stav technologie (např. při vynucení TRUE u ochrany motoru nebo havarijního plováku dojde ke zničení čerpadla nebo k ekologické havárii).`
