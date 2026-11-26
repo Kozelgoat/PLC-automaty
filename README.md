@@ -169,5 +169,181 @@ Doplňte do tabulky vhodnou kategorii a konkrétního zástupce z vybraných vý
 ---
 
 
+# 3. Inženýrská konfigurace funkční sestavy PLC Teco a proudová bilance
 
+## 1. Konfigurace komponent z katalogu Teco
 
+| Pozice | Typ modulu / komponenta | Přesné typové označení Teco | Objednací číslo (Part No.) | Pokryté vstupy a výstupy |
+|---|---|---|---|---|
+| 1 | Spínaný napájecí zdroj 24 V DC na DIN lištu | Mean Well DR-120-24 | DR-120-24 | Napájení centrály a senzorů 24 V DC |
+| 2 | Centrální jednotka (CPU) | CP-2007 | CP-2007.11NDNN | 14 univerzálních DI/AI, 11 reléových DO, 2 tranzistorové DO/PWM, Ethernet, TCL2 a CIB |
+| 3 | Rozšiřující modul 1 (sběrnice TCL2) | IB-1301 | TXN 113 01 | 12 digitálních vstupů DI 24 V DC |
+| 4 | Rozšiřující modul 2 (sběrnice TCL2) | OS-1401 | TXN 114 01 | 12 tranzistorových výstupů DO 24 V DC |
+| 5 | Případný další submodul / zakončení | Zakončovací člen TCL2 | Dle provedení sběrnice | Zakončení sběrnice TCL2, pokud je vyžadováno |
+
+**Poznámka:** Pro dosažení požadovaných 23 digitálních vstupů je potřeba ještě druhý modul IB-1301. Ten je zahrnut v následujících výpočtech. OS-1401 poskytuje 12 tranzistorových výstupů, z nichž 4 využijeme pro PWM.
+ 
+## 2. Vyhodnocení I/O bilance a projektové rezervy
+
+| Typ signálu | Požadavek linky | Celková kapacita navržené sestavy Teco | Rezerva (počet volných svorek) | Výsledná rezerva v % |
+|---|---:|---:|---:|---:|
+| Digitální vstupy (DI) | 23 | 31 | 8 | 34,8 % |
+| Analogové vstupy (AI: 4–20 mA, PT) | 7 | 7 | 0 | 0 % |
+| Tranzistorové výstupy (DO 6 = 4 PWM + 2 DO) | 6 | 14 | 8 | 133,3 % |
+| Reléové výstupy (DO relé 230 V) | 3 | 11 | 8 | 266,7 % |
+
+### Rozdělení vstupů a výstupů
+
+- **Digitální vstupy:** 7 vstupů na CP-2007 a 2 × 12 vstupů na IB-1301. Celkem 31 DI.
+- **Analogové vstupy:** 5 proudových vstupů 4–20 mA a 2 vstupy pro teplotní čidla Pt1000 na CP-2007.
+- **PWM výstupy:** 4 výstupy na modulu OS-1401.
+- **Standardní tranzistorové výstupy:** 2 výstupy na CP-2007.
+- **Reléové výstupy:** 11 výstupů na CP-2007, využity budou 3.
+
+Rezerva v procentech je vypočítána podle vzorce:
+
+`Rezerva = (kapacita - požadavek) / požadavek × 100`
+
+## 3. Proudová bilance a dimenzování napájecího zdroje 24 V DC
+
+### Výpočet proudové spotřeby
+
+**1. Vlastní příkon CPU a rozšiřujících modulů:**
+
+- CP-2007: maximální příkon 10 W.
+- 2 × IB-1301: 2 × 2,5 W = 5 W.
+- OS-1401: maximální příkon 2 W.
+
+Celkem:
+
+`P = 10 + 5 + 2 = 17 W`
+
+`I = P / U = 17 / 24 = 0,71 A`
+
+**2. Odběr napájených snímačů DI:**
+
+`I = 23 × 10 mA = 230 mA = 0,23 A`
+
+**3. Odběr zátěží na tranzistorových výstupech se soudobostí ks = 0,7:**
+
+`I = 6 × 0,5 × 0,7 = 2,1 A`
+
+**4. Celkový špičkový proud:**
+
+`Icelk = 0,71 + 0,23 + 2,1 = 3,04 A`
+
+**5. Potřebný proud zdroje včetně rezervy 25 %:**
+
+`Izdroje = 3,04 × 1,25 = 3,80 A`
+
+### Výběr napájecího zdroje
+
+- Zvolený zdroj: **Mean Well DR-120-24**
+- Výstupní napětí: 24 V DC
+- Výstupní proud: 5 A
+- Výkon: 120 W
+- Potřebný proud sestavy: přibližně 3,80 A.
+- Rezerva zdroje: přibližně 31,6 % nad vypočtený potřebný proud.
+
+Zdroj je dostačující a splňuje požadovanou výkonovou rezervu 25 %.
+
+### Alternativní zdroj jiného výrobce
+
+**Mean Well HDR-150-24**
+
+- Výstupní napětí: 24 V DC.
+- Výstupní proud: 6,5 A.
+- Výkon: 156 W.
+- Montáž na DIN lištu.
+
+Také tento zdroj splňuje požadavky sestavy a poskytuje větší proudovou rezervu.
+
+---
+
+# 4. Provozní diagnostika PLC, měření multimetrem a troubleshooting v IDE Mosaic
+
+*Časová dotace: 25–30 minut | Klasifikovaná inženýrská úloha na známky*
+
+## 1. Diagnostika podle stavových kontrolek (LED)
+
+| Signalizační prvek na PLC | Stav (barva / svit) | Provozní význam |
+|---|---|---|
+| RUN | Zelená, trvale svítí | PLC pracuje a vykonává uživatelský program. |
+| HALT / STOP | Žlutá / oranžová, svítí | PLC je zastavené a program se nevykonává. |
+| ERR / FAULT | Červená, bliká | PLC signalizuje chybu nebo poruchový stav. |
+| ERR / FAULT | Červená, trvale svítí | Závažná chyba PLC, která může bránit správnému chodu programu. |
+| ETH (Link/Act) | Zelená/žlutá, bliká | Probíhá síťová komunikace přes Ethernet. |
+
+## 2. Troubleshooting v elektrickém zapojení pomocí digitálního multimetru
+
+### A. Detekce tvrdého zkratu mezi +24 V DC a 0 V (GND)
+
+- Multimetr nastavím na měření odporu (Ω) nebo kontinuity.
+- Zařízení musí být odpojené od napájení.
+- Černý hrot připojím na 0 V (GND) a červený na +24 V.
+- Pokud multimetr ukazuje téměř 0 Ω, může se jednat o zkrat.
+
+### B. Ověření sepnutých kontaktů výstupního relé DO
+
+- Vypnu napájení PLC a ověřím beznapěťový stav.
+- Multimetr nastavím na měření kontinuity nebo odporu.
+- Hroty připojím na svorky kontaktu relé.
+- Sepnutý kontakt má téměř 0 Ω, rozepnutý kontakt ukazuje OL.
+
+### C. Diagnostika napájecího zdroje a napájení PLC (24 V DC)
+
+- Multimetr nastavím na měření stejnosměrného napětí (V DC).
+- Černý hrot připojím na 0 V a červený na +24 V.
+- Správná hodnota je přibližně 24 V DC.
+- Zkontroluji stabilitu napětí a případné kolísání.
+
+### D. Diagnostika vstupů a výstupů PLC (DI/DO)
+
+- Multimetr nastavím na měření stejnosměrného napětí (V DC).
+- Černý hrot připojím na GND a červený na měřený vstup nebo výstup.
+- Změřím napětí při vypnutém a zapnutém signálu.
+- U běžného 24V digitálního signálu očekávám přibližně 0 V při logické 0 a 24 V při logické 1.
+- Kontinuitu měřím pouze při vypnutém napájení.
+
+### E. Měření napětí 230 V AC pomocí multimetru
+
+- Multimetr nastavím na měření střídavého napětí (V AC).
+- Měření provádí pouze vyučující nebo kvalifikovaná osoba.
+- Měří se mezi fázovým vodičem L a nulovým vodičem N.
+- Správná hodnota je přibližně 230 V AC.
+
+**Jaké riziko z toho vyplývá při následné práci na zařízení?**
+
+- Hrozí úraz elektrickým proudem.
+- Nesprávné nastavení multimetru může způsobit jeho poškození nebo zkrat.
+- Před další prací je nutné ověřit beznapěťový stav.
+
+## 3. Diagnostika v programovacím prostředí Teco Mosaic
+
+### Nástroj Watch / Sledování proměnných (Inspektor)
+
+**Účel:**
+- Umožňuje sledovat aktuální hodnoty proměnných v PLC.
+- Pomáhá zjistit, zda vstupy a výstupy správně reagují.
+- Usnadňuje hledání chyb v programu.
+
+### Funkce Force (Vnucení hodnoty vstupu / výstupu)
+
+**Co přesně funkce provede:**
+- Ručně vnutí vstupu nebo výstupu určitou hodnotu (0 nebo 1), nezávisle na běžném řízení programu.
+
+**Provozní a bezpečnostní riziko funkce Force: Proč je její použití během ostrého provozu s přítomností lidské obsluhy zakázáno?**
+
+- Může způsobit nečekané spuštění stroje nebo pohyb motoru.
+- Může obejít běžné řízení a způsobit nebezpečnou situaci.
+- Může ohrozit obsluhu nebo poškodit zařízení.
+
+### Systémový diagnostický log (Chybový protokol PLC v Mosaic)
+
+**Jaké informace v něm technik vyčte:**
+
+- Chybová hlášení PLC.
+- Restart nebo výpadek CPU.
+- Výpadky komunikace na sběrnici TCL2.
+- Chyby programu, například dělení nulou.
+- Čas a průběh vzniku jednotlivých chyb.
